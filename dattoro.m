@@ -1,17 +1,23 @@
+% -------------------------------------
+% ***** Jon Dattorro Plate Reverb *****
+% -------------------------------------
+
 clear all; close all; clc;
 
-% fetch file
-file.name_in = 'gender1.wav';   % input file name
-file.name_out = 'gender1_reverb100_mix02_spline.wav';    % output file name
-mix = 0.2;	% mix factor: wet=1.0, dry=0.0
-
+% FETCH DATA:
+file.name_in = 'drums.wav';   % input file name
+file.name_out = 'drums_reverb20.wav';    % output file name
 [file.in, file.fs] = audioread(file.name_in);
+% file.in = file.in(1:5*file.fs, :); % take only 5 sec of the input
+% file.in = 0.9*file.in; % prevent signal from clipping if necessary
 
-% reverb parameters
-silenceSeconds = 1; % append silence in seconds
-file.fs_convert = file.fs / 29761;
-excursion = 0; % deactivate mod. delayline with excursion = 0;
-% excursion = round(8 * file.fs_convert); 
+% REVERB PARAMETERS: [default parameters in brackets]
+mix = 0.2;	% reverb mix factor: wet=1.0, dry=0.0
+silenceSeconds = 3.0; % append silence in seconds
+file.fs_convert = file.fs / 29761; % Jon Dattorro original fs = 29761
+% excursion = 0; % deactivate mod. delayline with excursion = 0;
+excursion = round(8 * file.fs_convert); % [8] samples
+sine.fmod = 1; % [1] Hz
 g1 = 0.75;	%input diffusion 1 [0.75]
 g2 = 0.625;	%input diffusion 2 [0.625]
 g3 = 0.5;	%decay diffusion 2 [0.5]
@@ -20,9 +26,13 @@ g5 = 0.5;	%decay [0.5]
 bandwidth = 0.9995; % [0.9995]
 damping = 0.0005; %[0.0005]
 
-% make stereo if mono
+% PREPATE DATA FOR PROCESSING
+
+% make stereo if mono:
+
 if size(file.in,2) ==1
     file.in(:,2) = file.in(:,1);
+%     file.in = 0.5*file.in; % halve inputs if necessary
 end
 
 file.in_old = file.in;
@@ -35,6 +45,7 @@ else
 end
 
 % append zeros for reverberating tail:
+
 nzeros = round(silenceSeconds * file.fs);
 blksz_old = blksz;
 file.in(blksz+1:blksz+nzeros,1) = 0;
@@ -43,23 +54,23 @@ file.left(blksz+1:blksz+nzeros) = 0;
 file.right(blksz+1:blksz+nzeros) = 0;
 blksz = size(file.in, 1);
 
-% compute buffersizes
+% compute buffersizes:
 
-lp1.bufsz = round(1 * file.fs_convert) + 2;
+lp1.bufsz = 2; %round(1 * file.fs_convert) + 2;
 ap1.bufsz = round(142 * file.fs_convert) + 2;
 ap2.bufsz = round(107 * file.fs_convert) + 2;
 ap3.bufsz = round(379 * file.fs_convert) + 2;
 ap4.bufsz = round(277 * file.fs_convert) + 2;
 %
-apm1.bufsz = round(672 * file.fs_convert) + 2 + 2*excursion;
+apm1.bufsz = round(672 * file.fs_convert) + 2;
 d1.bufsz = round(4453 * file.fs_convert) + 2;
-lp2.bufsz = round(1 * file.fs_convert) + 2;
+lp2.bufsz = 2; %round(1 * file.fs_convert) + 2;
 ap5.bufsz = round(1800 * file.fs_convert) + 2;
 d2.bufsz = round(3720 * file.fs_convert) + 2;
 %
-apm2.bufsz = round(908 * file.fs_convert) + 2 + 2*excursion;
+apm2.bufsz = round(908 * file.fs_convert) + 2;
 d3.bufsz = round(4217 * file.fs_convert) + 2;
-lp3.bufsz = round(1 * file.fs_convert) + 2;
+lp3.bufsz = 2; %round(1 * file.fs_convert) + 2;
 ap6.bufsz = round(2656 * file.fs_convert) + 2;
 d4.bufsz = round(3163 * file.fs_convert) + 2;
 %
@@ -79,7 +90,7 @@ d16.bufsz = round(2111 * file.fs_convert) + 2;
 d17.bufsz = round(335 * file.fs_convert) + 2;
 d18.bufsz = round(121 * file.fs_convert) + 2;
 
-% init buffers
+% init buffers:
 
 reverb.in(1 : blksz) = 0;
 lp1.buffer = zeros(1, lp1.bufsz);
@@ -87,23 +98,19 @@ ap1.buffer = zeros(1, ap1.bufsz);
 ap2.buffer = zeros(1, ap2.bufsz);
 ap3.buffer = zeros(1, ap3.bufsz);
 ap4.buffer  = zeros(1, ap4.bufsz);
-% ***
+%
 apm1.buffer  = zeros(1, apm1.bufsz);
-%apm1.bufsz = apm1.bufsz;% - 2 - excursion;
-%apm1.out = 0; apm1.oldout = 0;
 d1.buffer  = zeros(1, d1.bufsz);
 lp2.buffer  = zeros(1, lp2.bufsz);
 ap5.buffer  = zeros(1, ap5.bufsz);
 d2.buffer  = zeros(1, d2.bufsz);
-% ***
+%
 apm2.buffer  = zeros(1, apm2.bufsz);
-%apm2.bufsz = apm2.bufsz;% - 2 - excursion;
-%apm2.out = 0; apm2.oldout = 0;
 d3.buffer  = zeros(1, d3.bufsz);
 lp3.buffer  = zeros(1, lp3.bufsz);
 ap6.buffer  = zeros(1, ap6.bufsz);
 d4.buffer  = zeros(1, d4.bufsz);
-% ***
+%
 d5.buffer  = zeros(1, d5.bufsz);
 d6.buffer  = zeros(1, d6.bufsz);
 d7.buffer  = zeros(1, d7.bufsz);
@@ -111,7 +118,7 @@ d8.buffer  = zeros(1, d8.bufsz);
 d9.buffer  = zeros(1, d9.bufsz);
 d10.buffer  = zeros(1, d10.bufsz);
 d11.buffer  = zeros(1, d11.bufsz);
-% ***
+%
 d12.buffer  = zeros(1, d12.bufsz);
 d13.buffer  = zeros(1, d13.bufsz);
 d14.buffer  = zeros(1, d14.bufsz);
@@ -129,7 +136,7 @@ tank.rightout = 0;
 reverb.out(1 : blksz, 1) = 0;
 reverb.out(1 : blksz, 2) = 0;
 
-% init pointers
+% init pointers:
 
 lp1.wI = 1; lp1.rI = 2;
 ap1.wI = 1; ap1.rI = 2;
@@ -165,24 +172,35 @@ d16.wI = 1; d16.rI = 2;
 d17.wI = 1; d17.rI = 2;
 d18.wI = 1; d18.rI = 2;
 
+% init excursion:
+
 sine.lfoIndex = 1;
 sine.excursion = excursion;
-sine.fs = file.fs; % 1Hz LFO delay modulation; file.fs/2 for 0.5Hz
+sine.fs = file.fs/sine.fmod; % 1Hz LFO delay modulation; file.fs/0.5 for 0.5Hz
+
+% init buffers/samples for modulated allpass:
 
 apm1.ppi_buffer = zeros(1,4);
 apm2.ppi_buffer = zeros(1,4);
 apm1.ppi_out = 0;
 apm2.ppi_out = 0;
 
+apm1.x_old = 0;
+apm1.y_old = 0;
+apm2.x_old = 0;
+apm2.y_old = 0;
+apm1.lp_old = 0;
+apm2.lp_old = 0;
 
-% signal processing
+
+% start signal processing:
 
 tic;
 
 i = 1;
 while i <= blksz
     
-	reverb.in(i) = 0.5 * (file.left(i) + file.right(i)); % *0.5
+	reverb.in(i) = 0.5 * (file.left(i) + file.right(i));
     
     % Input Diffusion
 	[lp1.out, lp1.rI, lp1.wI, lp1.buffer] = lowp(reverb.in(i), lp1.rI, lp1.wI, bandwidth, lp1.buffer, lp1.bufsz);
@@ -196,9 +214,11 @@ while i <= blksz
 	tank.rightin = tank.leftout + ap4.out;
     
     % Left Tank
-    [apm1.out, apm1.rI, apm1.wI, apm1.buffer, apm1.ppi_buffer, apm1.ppi_out] = ...
+    [apm1.out, apm1.rI, apm1.wI, apm1.buffer, apm1.ppi_buffer, apm1.ppi_out, ...
+        apm1.x_old, apm1.y_old, apm1.lp_old] = ...
         allpm(tank.leftin, apm1.rI, apm1.wI, sine.lfoIndex, sine.excursion, ...
-        file.fs, apm1.ppi_buffer, apm1.ppi_out, g4, apm1.buffer, apm1.bufsz);
+        sine.fs, apm1.ppi_buffer, apm1.ppi_out, apm1.x_old, apm1.y_old, apm1.lp_old, ...
+        g4, apm1.buffer, apm1.bufsz);
     [d1.out, d1.tap, d1.rI, d1.wI, d1.buffer] = del(apm1.out, d1.rI, d1.wI, d1.buffer, d1.bufsz);
 	[lp2.out, lp2.rI, lp2.wI, lp2.buffer] = lowp(d1.out, lp2.rI, lp2.wI, (1-damping), lp2.buffer, lp2.bufsz);
     lp2.out = lp2.out * g5;
@@ -207,9 +227,11 @@ while i <= blksz
 	tank.leftout = d2.out * g5;
 	
     % Right Tank
-	[apm2.out, apm2.rI, apm2.wI, apm2.buffer, apm2.ppi_buffer, apm2.ppi_out] = ...
+	[apm2.out, apm2.rI, apm2.wI, apm2.buffer, apm2.ppi_buffer, apm2.ppi_out, ...
+        apm2.x_old, apm2.y_old, apm2.lp_old] = ...
         allpm(tank.rightin, apm2.rI, apm2.wI, sine.lfoIndex, sine.excursion, ...
-        file.fs, apm2.ppi_buffer, apm2.ppi_out, g4, apm2.buffer, apm2.bufsz);
+        sine.fs, apm2.ppi_buffer, apm2.ppi_out, apm2.x_old, apm2.y_old, apm1.lp_old, ...
+        g4, apm2.buffer, apm2.bufsz);
     [d3.out, d3.tap, d3.rI, d3.wI, d3.buffer] = del(apm2.out, d3.rI, d3.wI, d3.buffer, d3.bufsz);
 	[lp3.out, lp3.rI, lp3.wI, lp3.buffer] = lowp(d3.out, lp3.rI, lp3.wI, (1-damping), lp3.buffer, lp3.bufsz);
     lp3.out = lp3.out * g5;
@@ -240,10 +262,10 @@ while i <= blksz
 	% sine pointer, current sine value update
     sine.lfoIndex = mod(sine.lfoIndex, sine.fs) + 1;
     
-
 i=i+1;
 end
 
+% compute processing time:
 
 file.processtime = toc;
 file.processtimepercycle = file.processtime/i;
@@ -251,22 +273,106 @@ file.seconds = blksz / file.fs;
 file.seconds_old = blksz_old / file.fs;
 file.processtimeperseconds = file.processtime/file.seconds;
 
-file.out = file.in * (1-mix) + reverb.out * mix;
+% compute output, normalize and write to file:
 
-%file.out = transpose(file.out);
-audiowrite(file.name_out, file.out, file.fs);
+file.out = file.in * (1-mix) + reverb.out * mix;
+file.out(:,1) = file.out(:,1)./max(abs(file.out(:,1)));
+file.out(:,2) = file.out(:,2)./max(abs(file.out(:,2)));
+audiowrite(file.name_out, file.out*0.8, file.fs);
+
 %% Plot logarithmic timesignal
+
 t_vec = 0:1/file.fs:(length(file.out)-1)/file.fs;
 figure(1)
-plot(t_vec, (file.in));
+plot(t_vec, (file.in)); grid on;
+xlabel('Time [sec]')
+ylabel('Amplitude')
+
 figure(2)
-plot(t_vec, ((file.out))); grid on;
+plot(t_vec, (file.out)); grid on; % linear
+% plot(t_vec, db(file.out)); grid on; % logarithmic
+xlabel('Time [sec]')
+ylabel('Amplitude')
+legend('Output Left', 'Output Right');
+
+%% Plot STFT output
+
+window=1024;
+noverlap=window/4;
+nfft=window;
+
+figure;
+spectrogram(file.out(:,1),blackman(window),noverlap,nfft, 'yaxis');
+% view(135,30)
+view(-180,90)
+ax = gca;
+ax.XDir = 'reverse';
+ax.YDir = 'reverse';
+ylabel('Frequency [kHz]')
+yticks([0, 5E3, 10E3, 15E3, 20E3, file.fs/2]/file.fs*2)
+yticklabels({'0', '5', '10', '15', '20', '24'})
+xlabel('Time [sec]')
+xticks([0, 1, 2, 3, 4, 5]*file.fs)
+xticklabels({'0', '1', '2', '3', '4', '5'})
+
+figure;
+spectrogram(file.out(:,2),blackman(window),noverlap,nfft, 'yaxis');
+% view(135,30)
+view(-180,90)
+ax = gca;
+ax.XDir = 'reverse';
+ax.YDir = 'reverse';
+ylabel('Frequency [kHz]')
+yticks([0, 5E3, 10E3, 15E3, 20E3, file.fs/2]/file.fs*2)
+yticklabels({'0', '5', '10', '15', '20', '24'})
+xlabel('Time [sec]')
+xticks([0, 1, 2, 3, 4, 5]*file.fs)
+xticklabels({'0', '1', '2', '3', '4', '5'})
+
+%% Plot STFT input
+
+window=1024;
+noverlap=window/4;
+nfft=window;
+
+figure;
+spectrogram(file.in(:,1),blackman(window),noverlap,nfft, 'yaxis');
+% view(135,30)
+view(-180,90)
+ax = gca;
+ax.XDir = 'reverse';
+ax.YDir = 'reverse';
+ylabel('Frequency [kHz]')
+yticks([0, 5E3, 10E3, 15E3, 20E3, file.fs/2]/file.fs*2)
+yticklabels({'0', '5', '10', '15', '20', '24'})
+xlabel('Time [sec]')
+xticks([0, 1, 2, 3, 4, 5]*file.fs)
+xticklabels({'0', '1', '2', '3', '4', '5'})
+
+figure;
+spectrogram(file.in(:,2),blackman(window),noverlap,nfft, 'yaxis');
+% view(135,30)
+view(-180,90)
+ax = gca;
+ax.XDir = 'reverse';
+ax.YDir = 'reverse';
+ylabel('Frequency [kHz]')
+yticks([0, 5E3, 10E3, 15E3, 20E3, file.fs/2]/file.fs*2)
+yticklabels({'0', '5', '10', '15', '20', '24'})
+xlabel('Time [sec]')
+xticks([0, 1, 2, 3, 4, 5]*file.fs)
+xticklabels({'0', '1', '2', '3', '4', '5'})
+
 %% Impulse Response Stem
+
 figure;
 stem(file.in); hold on; grid on;
 stem(file.out);
 ylim([-1.2 1.2]);
-xlim([-1 1E4]);
+xlim([-1 10E4]);
+ylabel('Amplitude');
+xlabel('Samples [n]');
 legend('Input Left', 'Input Right', 'Output Left', 'Output Right');
+
 %%
-sound(reverb.out, file.fs);
+sound(0.8*file.out, file.fs);
